@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//WAPFORUM//DTD XHTML Mobile 1.0//EN"
+  "http://www.wapforum.org/DTD/xhtml-mobile10.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>Gemini Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<style type="text/css">
+body{background:#f1f1f1;margin:0;padding:0;font-family:sans-serif;}
+#chatbox{width:96vw;max-width:400px;height:260px;overflow:auto;background:#fff;margin:10px auto 8px auto;padding:8px;border:1px solid #bbb;border-radius:6px; font-size:14px;}
+.msg{margin:7px 0;}
+.user{color:blue;}
+.bot{color:green;}
+#row{max-width:400px;width:96vw;margin:0 auto;}
+#input{width:70%;padding:3px;border-radius:3px;border:1px solid #aaa;}
+#send{padding:3px 10px;border:none;background:#39f;color:#fff;border-radius:3px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="chatbox"></div>
+<div id="row">
+  <input id="input" type="text" placeholder="Type your message..." />
+  <input id="send" type="button" value="Send" onclick="chatSend()"/>
+</div>
+<script type="text/javascript">
+// নিজের Google Gemini API key এখানে বসাও
+var GEMINI_API_KEY = "AIzaSyCMtv0frNbDuRbMjDgZJ9ACDUTW4Sj7ux0";
+var API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key="+encodeURIComponent(GEMINI_API_KEY);
+var chatbox = document.getElementById("chatbox");
+var input = document.getElementById("input");
+
+function addMsg(txt, who) {
+  var d = document.createElement("div");
+  d.className = "msg " + who;
+  d.innerHTML = "<b>" + (who=="user"?"You":"Bot") + ":</b> " + txt.replace(/</g,"&lt;").replace(/\n/g,"<br>");
+  chatbox.appendChild(d);
+  chatbox.scrollTop = chatbox.scrollHeight;
+}
+
+function chatSend() {
+  var msg = input.value.replace(/^\s+|\s+$/g, "");
+  if(!msg) return false;
+  addMsg(msg, "user");
+  input.value = "";
+  addMsg("Typing...", "bot");
+  sendGemini(msg, function(reply){
+    // Remove last 'Typing...'
+    if(chatbox.lastChild && chatbox.lastChild.className.indexOf("bot")>=0 && chatbox.lastChild.innerHTML.indexOf("Typing...")>=0) {
+      chatbox.removeChild(chatbox.lastChild);
+    }
+    addMsg(reply, "bot");
+  });
+  return false;
+}
+
+function sendGemini(text, cb){
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", API_URL, true);
+  xhr.setRequestHeader("Content-Type", "application/json");
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState === 4){
+      var ans = "Sorry, could not connect.";
+      try {
+        var resp = JSON.parse(xhr.responseText);
+        if(resp && resp.candidates && resp.candidates[0] && resp.candidates[0].content && resp.candidates[0].content.parts && resp.candidates[0].content.parts[0].text){
+          ans = resp.candidates[0].content.parts[0].text;
+        } else if(resp.error && resp.error.message){
+          ans = "Error: " + resp.error.message;
+        }
+      } catch(e){}
+      cb(ans);
+    }
+  };
+  var payload = '{"contents":[{"parts":[{"text":'+JSON.stringify(text)+'}]}]}';
+  xhr.send(payload);
+}
+</script>
+</body>
+  </html>
